@@ -15,7 +15,7 @@
 # that; the subsequent `pip install -e .` then sees the requirement already
 # satisfied and does not pull the CUDA build.
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 
