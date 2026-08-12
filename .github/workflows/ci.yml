@@ -11,7 +11,10 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ["3.11", "3.12"]
+        # 3.11 is the floor declared in pyproject.toml; 3.14 is what the
+        # Docker image actually runs. Both ends must be covered, or the
+        # container ships a Python version CI has never exercised.
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
@@ -33,7 +36,9 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.12"
+          # Match the Dockerfile, so the smoke test exercises the same
+          # interpreter the shipped container uses.
+          python-version: "3.14"
 
       - name: Install package
         run: python -m pip install -e ".[dev]"

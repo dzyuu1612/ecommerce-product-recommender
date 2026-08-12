@@ -34,7 +34,7 @@ is enough to get a working instance. With the volumes mounted, later restarts
 skip the bootstrap.
 
 **Verified**: built and exercised end-to-end on Docker Engine 29.7.2. Final
-image **1.49 GB**, container runs as `uid=1000(appuser)`, and the built-in
+image **1.51 GB** on `python:3.14-slim`, container runs as `uid=1000(appuser)`, and the built-in
 `HEALTHCHECK` polls `/health`.
 
 ### Bootstrap sizing
@@ -68,7 +68,7 @@ RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu 
     ...
 ```
 
-**8.03 GB → 1.49 GB**, no functional difference.
+**8.03 GB → 1.51 GB**, no functional difference.
 
 ### Docker on Windows without Docker Desktop
 

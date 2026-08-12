@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen.svg)](tests/)
-[![Docker image](https://img.shields.io/badge/docker-1.49%20GB-blue.svg)](Dockerfile)
+[![Docker image](https://img.shields.io/badge/docker-1.51%20GB-blue.svg)](Dockerfile)
 
 [Quickstart](#quickstart) · [What it does](#what-it-does) · [Documentation](#documentation) · [Known limitations](#known-limitations)
 
@@ -92,7 +92,7 @@ docker run --rm -p 8000:8000 \
 ```
 
 First run with an empty volume bootstraps data and trains a model before
-serving. Verified end-to-end on Docker Engine 29.7.2; final image **1.49 GB**,
+serving. Verified end-to-end on Docker Engine 29.7.2; final image **1.51 GB**,
 running as `uid=1000(appuser)`. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 </details>
 
@@ -171,7 +171,7 @@ same variant.
 
 ### Docker image
 
-**8.03 GB → 1.49 GB (−82%)**. PyPI's default Linux `torch` wheel bundles the
+**8.03 GB → 1.51 GB (−81%)**. PyPI's default Linux `torch` wheel bundles the
 entire CUDA runtime — ~6.5 GB of GPU libraries a CPU-only container can never
 use. Installing torch from the CPU index first fixes it.
 
@@ -219,8 +219,9 @@ Highlights of what is asserted:
 - A/B assignment is sticky and splits at the configured ratio
 - `/api/events/batch` **rolls the whole order back** if any line is invalid
 
-CI runs on Ubuntu and Windows across Python 3.11 and 3.12, plus a smoke test
-that boots the real server.
+CI runs on Ubuntu and Windows across Python 3.11, 3.12, 3.13 and 3.14 — the
+floor declared in `pyproject.toml` through to the version the Docker image
+actually runs — plus a smoke test that boots the real server on 3.14.
 
 ---
 
