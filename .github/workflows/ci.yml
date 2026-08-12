@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.12"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package (with dev extras)
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run test suite
+        run: python -m pytest tests -q
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package
+        run: python -m pip install -e ".[dev]"
+
+      - name: Generate data, build features, train a tiny model
+        run: |
+          python -m recsys_lite.generator --items 100 --users 100
+          python -m recsys_lite.features
+          python -m recsys_lite.train --epochs 2
+
+      - name: Boot the API and hit /health and /api/recommend
+        run: |
+          python -m uvicorn recsys_lite.serving.app:app --host 127.0.0.1 --port 8000 &
+          sleep 3
+          curl -sf http://127.0.0.1:8000/health
+          curl -sf "http://127.0.0.1:8000/api/recommend/1?k=5"

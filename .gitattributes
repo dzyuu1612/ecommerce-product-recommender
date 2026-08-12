@@ -1,0 +1,31 @@
+# Normalise to LF in the repository. Without this, a checkout on Windows
+# rewrites shell scripts with CRLF, and `scripts/docker-entrypoint.sh` then
+# fails inside the Linux container with "bad interpreter: no such file or
+# directory" because the shebang line ends in \r.
+* text=auto eol=lf
+
+# Files that must keep LF no matter what the checkout platform is.
+*.sh        text eol=lf
+Dockerfile  text eol=lf
+*.py        text eol=lf
+*.js        text eol=lf
+*.css       text eol=lf
+*.html      text eol=lf
+*.md        text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.toml      text eol=lf
+
+# PowerShell is the one place CRLF is correct.
+*.ps1       text eol=crlf
+
+# Binary — never touch, never diff.
+*.woff2     binary
+*.png       binary
+*.jpg       binary
+*.gif       binary
+*.pt        binary
+*.db        binary
+
+# Keep generated artefacts out of language statistics and diffs.
+web/fonts/*.woff2 linguist-vendored
