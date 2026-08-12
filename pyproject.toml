@@ -9,7 +9,7 @@ authors = [
 ]
 dependencies = [
   "fastapi>=0.141.1",
-  "uvicorn[standard]>=0.30",
+  "uvicorn[standard]>=0.52.1",
   "pydantic>=2.13.4",
   "torch>=2.4",
   "numpy>=1.26",
