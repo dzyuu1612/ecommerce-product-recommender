@@ -27,8 +27,8 @@
 ## Setup
 
 ```bash
-git clone <your-fork-url>
-cd recsys-lite
+git clone https://github.com/dzyuu1612/ecommerce-product-recommender.git
+cd ecommerce-product-recommender
 
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate

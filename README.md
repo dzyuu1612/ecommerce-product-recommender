@@ -4,7 +4,7 @@
 
 **An end-to-end product recommender you can run on a laptop — and a console that shows you exactly how it works.**
 
-[![CI](https://github.com/baoduynguyen1612/recsys-lite/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
+[![CI](https://github.com/dzyuu1612/ecommerce-product-recommender/actions/workflows/ci.yml/badge.svg)](https://github.com/dzyuu1612/ecommerce-product-recommender/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/tests-55%20passing-brightgreen.svg)](tests/)
