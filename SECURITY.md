@@ -11,7 +11,10 @@ but it means:
 
 > **Do not expose this on the public internet.** Run it on localhost, on a
 > private network, or behind a proxy that terminates TLS and authenticates
-> requests. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#behind-a-reverse-proxy).
+> requests. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#behind-a-reverse-proxy)
+> for the proxy configuration, and
+> [docs/AUTHORIZATION.md](docs/AUTHORIZATION.md) for a diagram of exactly what
+> the missing boundary exposes.
 
 ---
 

@@ -156,6 +156,7 @@ measured table lives in [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md).
 |---|---|
 | An endpoint | [docs/API.md](docs/API.md) |
 | A user-visible flow | [docs/BUSINESS-FLOW.md](docs/BUSINESS-FLOW.md) |
+| Anything touching who may call what | [docs/AUTHORIZATION.md](docs/AUTHORIZATION.md) |
 | A component or token | [docs/DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md) |
 | A module boundary | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
 | A CLI flag or env var | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) |
@@ -206,7 +207,19 @@ Contributions that turn it into a platform are likely to be declined:
 - Swapping SQLite for a database server
 - Adding Kafka, Airflow, Kubernetes manifests, a feature-store service
 - A frontend framework and build pipeline
-- An auth system
 
 If you want that system, this repository is a reasonable map of it — but it is
 not trying to become it. Open an issue and let's talk before writing the code.
+
+### The one exception worth naming
+
+[docs/AUTHORIZATION.md](docs/AUTHORIZATION.md) contains a **designed but
+unimplemented** role model. That document exists so the boundary has a known
+shape, not as a commitment to build it — the demo deliberately ships without
+auth, and the missing boundary is documented rather than hidden.
+
+If you want to implement it, that is a genuinely welcome contribution, but
+**open an issue first**: it touches every endpoint, it needs a decision about
+where identity comes from, and it would change the project's "run it in thirty
+seconds" character. Please follow the shape in that document rather than
+inventing a parallel one.

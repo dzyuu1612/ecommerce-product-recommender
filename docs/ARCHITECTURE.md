@@ -7,6 +7,7 @@ deliberately leaves out.
 - [Component reference](#component-reference)
 - [The offline path](#the-offline-path)
 - [The online path](#the-online-path)
+  - [Model lifecycle](#model-lifecycle)
 - [Data model](#data-model)
 - [Model architecture](#model-architecture)
 - [What stands in for what](#what-stands-in-for-what)
@@ -20,49 +21,47 @@ One Python process serves the API and the web console. One SQLite file is the
 system of record. There is no message broker, no orchestrator, no separate
 inference server, and no external cache.
 
+The thing worth drawing is not the module list — it is **the loop, and the
+delay inside it**. A shopper's action does not reach the recommender
+immediately; it lands in an append-only log, and the serving-time feature
+cache only picks it up when its 8-second TTL expires. That delay is the single
+most surprising property of the system, so it is the one the diagram makes
+visible.
+
 ```mermaid
-flowchart TB
-    subgraph client["Browser — Kestrel console"]
-        shop["Shop routes<br/>storefront · catalog · product · cart · checkout"]
-        ops["Operations routes<br/>overview · models · drift · event stream"]
-    end
+flowchart LR
+    act["Shopper acts<br/><i>view · cart · purchase</i>"]
 
-    subgraph api["FastAPI process"]
-        routes["serving/app.py<br/>HTTP layer"]
-        rank["serving/ranking.py<br/>candidate scoring · Top-K"]
-        ab["serving/ab.py<br/>sticky champion/candidate router"]
-        obs["serving/observability.py<br/>/metrics"]
-        store["online_store.py<br/>in-memory features, 8s TTL"]
-        reg["registry.py<br/>versioned checkpoints"]
-    end
+    log[("events<br/><i>append-only</i>")]
 
-    db[("SQLite<br/>products · users · events")]
+    cache["online_store.py<br/>sequence + candidate pool<br/><i>in memory</i>"]
 
-    subgraph offline["Offline (CLI, run on demand)"]
-        gen["generator.py"]
-        feat["features.py"]
-        train["train.py"]
-        drift["drift.py"]
-    end
+    model["RankingModel<br/><i>scores the pool in one batch</i>"]
 
-    shop -->|"GET /api/*"| routes
-    ops -->|"GET /api/*"| routes
-    shop -->|"POST /api/events"| routes
-    routes --> rank --> ab
-    routes --> obs
-    routes --> store
-    ab --> reg
-    routes -->|read + append| db
-    store -->|"refresh on TTL"| db
-    gen --> db
-    db --> feat --> train --> reg
-    db --> drift --> routes
+    ui["Top-K rendered<br/>with match scores"]
+
+    act -->|"POST /api/events<br/>committed synchronously"| log
+    log -.->|"read only when the cache<br/>is older than 8s"| cache
+    cache -->|"padded tensors"| model
+    model -->|"sigmoid per candidate"| ui
+    ui --> act
+
+    log ==>|"features.py<br/>point-in-time rows"| train["train.py<br/>evaluate · register"]
+    train ==>|"promote if val NDCG@5 wins"| model
 ```
 
-The important edge is `shop -->|POST /api/events| routes --> db --> store`.
-That is the feedback loop: what a shopper does becomes a row, the row becomes
-a feature, and the feature changes the next recommendation. Nothing in the UI
-is mocked to simulate it.
+*Figure 1 — the online loop (thin arrows) closes in seconds; the offline loop
+(thick arrows) closes whenever someone retrains. The dotted arrow is where the
+8s TTL sits: it is the only place in the system where fresh data waits.*
+
+Two readings follow from that shape:
+
+- **The UI cannot honestly show an instant update.** After an action the
+  storefront waits ~9 s before re-querying, and says so, because the dotted
+  arrow has not fired yet.
+- **Both loops read the same table.** There is no separate analytics store, so
+  a training row and a serving feature are derived from identical bytes —
+  which is what makes point-in-time reconstruction trustworthy.
 
 ---
 
@@ -123,37 +122,92 @@ Every artifact is reproducible from a seed. `features.py` also writes a
 
 ## The online path
 
+One request to `/api/recommend/{user_id}` makes three decisions, and all three
+are worth seeing: whether the feature cache is stale, which model variant
+answers, and whether the shopper has any history at all.
+
 ```mermaid
 sequenceDiagram
-    participant U as Shopper
     participant W as Kestrel (browser)
     participant A as FastAPI
-    participant S as Online store
-    participant M as Model
+    participant R as ab.py router
+    participant S as online_store.py
     participant D as SQLite
+    participant M as RankingModel
 
-    U->>W: opens a product
-    W->>A: POST /api/events {view}
-    A->>D: INSERT INTO events
-    W->>A: GET /api/recommend/{user}
-    A->>S: sequence + candidate pool
-    alt cache older than 8s
-        S->>D: reload products, histories, popularity
+    W->>A: GET /api/recommend/42?k=10
+
+    A->>R: route(user_id=42)
+    Note over R: bucket = md5(42) % 100<br/>stable per shopper, not random
+    alt bucket < candidate weight
+        R-->>A: candidate model + version
+    else
+        R-->>A: champion model + version
     end
-    S-->>A: features
-    A->>M: score whole candidate pool in one batch
-    M-->>A: scores
-    A-->>W: Top-K + model version + A/B variant
-    W-->>U: renders with match bars
+
+    A->>S: get_sequence(42), get_candidates(42)
+    alt cache age > 8s
+        S->>D: reload products, histories, popularity
+        D-->>S: full refresh
+    else cache fresh
+        Note over S: dict lookups only
+    end
+    alt shopper has history
+        S-->>A: recent sequence + preferred-category pool
+    else cold start
+        S-->>A: empty sequence + popularity pool
+    end
+
+    A->>M: one batch — whole candidate pool
+    Note over M: padding masked with<br/>src_key_padding_mask
+    M-->>A: sigmoid score per candidate
+    A-->>W: Top-K + model_version + ab_variant
 ```
 
-Two properties worth calling out:
+*Figure 3 — the three `alt` blocks are the decisions. Everything else is
+mechanical.*
 
-- **One batch per request.** The candidate pool is scored as a single forward
-  pass, not one call per item.
-- **The TTL is visible in the UI.** After an action the storefront waits ~9s
-  before re-querying, because the online store's cache is 8s. The delay is
-  real and the interface says so rather than pretending it is instant.
+Three properties this makes explicit:
+
+- **One batch per request.** The whole candidate pool is a single forward pass,
+  not one call per item.
+- **A/B assignment is a hash, not a coin flip.** The same shopper always gets
+  the same variant, so their experience stays coherent across requests.
+- **Cold start is a branch, not a failure.** An unknown shopper gets a
+  popularity pool and an all-padding sequence, and the model scores it — see
+  the caveat about score *comparability* in
+  [README.md](../README.md#known-limitations).
+
+### Model lifecycle
+
+Promotion is the one place where a training run changes what production serves,
+so the states are worth naming.
+
+```mermaid
+stateDiagram-v2
+    [*] --> registered : train.py writes models/vN
+    registered --> champion : val NDCG@5 >= incumbent<br/>(or first model ever)
+    registered --> candidate : val NDCG@5 < incumbent
+    candidate --> serving_ab : RECSYS_LITE_AB_CANDIDATE_WEIGHT > 0<br/>+ API restart
+    serving_ab --> candidate : weight set back to 0
+    champion --> superseded : a later run beats it
+    superseded --> champion : registry.json edited by hand
+    champion --> [*]
+
+    note right of champion
+      Only one champion at a time.
+      The API reads it at startup,
+      so promotion needs a restart.
+    end note
+    note right of candidate
+      Still registered and inspectable
+      at /api/models — it simply
+      takes no traffic by default.
+    end note
+```
+
+*Figure 4 — a losing model is kept, not discarded. `superseded --> champion`
+exists but is manual: there is no rollback UI, only editing `registry.json`.*
 
 ---
 
@@ -274,6 +328,7 @@ what it does.
 ## Related documents
 
 - [BUSINESS-FLOW.md](BUSINESS-FLOW.md) — the end-to-end journeys
+- [AUTHORIZATION.md](AUTHORIZATION.md) — trust boundary today, proposed role model
 - [API.md](API.md) — endpoint reference
 - [DESIGN-SYSTEM.md](DESIGN-SYSTEM.md) — UI tokens and rules
 - [DEVELOPMENT.md](DEVELOPMENT.md) — running and extending it

@@ -191,6 +191,7 @@ caught two genuine failures that review had missed.
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System shape, components, offline/online paths, data model, design trade-offs |
 | [BUSINESS-FLOW.md](docs/BUSINESS-FLOW.md) | Eight end-to-end flows with sequence diagrams, event semantics |
 | [API.md](docs/API.md) | All 15 endpoints with payloads and error behaviour |
+| [AUTHORIZATION.md](docs/AUTHORIZATION.md) | Trust boundary as it actually is, abuse paths it opens, and a proposed role model |
 | [DESIGN-SYSTEM.md](docs/DESIGN-SYSTEM.md) | Tokens, measured contrast, icons, artwork, a11y checklist |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | Setup, CLIs, config, testing, frontend conventions, troubleshooting |
 | [DEPLOYMENT.md](docs/DEPLOYMENT.md) | Docker, systemd, reverse proxy, backup, sizing, production gaps |
